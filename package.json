@@ -1,7 +1,8 @@
 {
-  "name": "amin",
+  "name": "eram",
   "module": "index.ts",
   "type": "module",
+  "version": "0.0.1",
   "devDependencies": {
     "@types/bun": "latest"
   },
