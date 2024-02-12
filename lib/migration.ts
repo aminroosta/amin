@@ -21,8 +21,7 @@ export class PgMigration implements IMigration {
     }
 
     async up_v1() {
-        await this.sql.begin(async sql => {
-            await sql`
+        await this.sql.begin(sql => sql.unsafe(`
 CREATE TYPE public.eram_job_state AS ENUM (
   'available',
   'scheduled',
@@ -31,8 +30,7 @@ CREATE TYPE public.eram_job_state AS ENUM (
   'completed',
   'discarded',
   'cancelled'
-);`;
-            await sql`
+);
 CREATE TABLE public.eram_jobs (
   id bigserial PRIMARY KEY,
   state public.eram_job_state DEFAULT 'available'::public.eram_job_state NOT NULL,
@@ -58,25 +56,21 @@ CREATE TABLE public.eram_jobs (
   CONSTRAINT queue_length CHECK (char_length(queue) BETWEEN 1 AND 127),
   CONSTRAINT worker_length CHECK (char_length(worker) BETWEEN 1 AND 127),
   CONSTRAINT non_negative_priority CHECK (priority >= 0)
-);`;
-            await sql`COMMENT ON TABLE public.eram_jobs IS '1';`;
-            await sql`
+);
+COMMENT ON TABLE public.eram_jobs IS '1';
 CREATE UNLOGGED TABLE public.eram_peers (
   name text PRIMARY KEY,
   node text NOT NULL,
   started_at timestamp without time zone NOT NULL,
   expires_at timestamp without time zone NOT NULL
-);`;
+);
 
-            await sql`
-CREATE INDEX eram_jobs_args_index ON public.eram_jobs USING gin (args);`;
-            await sql`
-CREATE INDEX eram_jobs_meta_index ON public.eram_jobs USING gin (meta);`;
-            await sql`
+CREATE INDEX eram_jobs_args_index ON public.eram_jobs USING gin (args);
+CREATE INDEX eram_jobs_meta_index ON public.eram_jobs USING gin (meta);
 CREATE INDEX eram_jobs_state_queue_priority_scheduled_at_id_index
   ON public.eram_jobs
-  USING btree (state, queue, priority, scheduled_at, id);`;
-        });
+  USING btree (state, queue, priority, scheduled_at, id);`
+        ));
     }
 
     async current_version() {
@@ -105,11 +99,11 @@ AND pg_namespace.nspname = ${prefix}`;
     }
 
     async down_v1() {
-        await this.sql.begin(async sql => {
-            await sql`drop table if exists public.eram_jobs;`;
-            await sql`drop table if exists public.eram_peers;`;
-            await sql`drop type if exists public.eram_job_state;`;
-        });
+        await this.sql.begin(sql => sql.unsafe(`
+drop table if exists public.eram_jobs;
+drop table if exists public.eram_peers;
+drop type if exists public.eram_job_state;`
+        ));
     }
 }
 
