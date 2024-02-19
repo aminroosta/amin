@@ -96,3 +96,129 @@ class EmailUserJob extends EramJob {
 }
 await EmailUserJob.enqueue({email: 'a@b.c'});
 
+engine
+-----
+- https://www.postgresql.org/docs/current/explicit-locking.html use pg_try_advisory_xact_lock
+- https://www.postgresql.org/docs/current/functions-admin.html#FUNCTIONS-ADVISORY-LOCKS
+
+
+stage_jobs() {
+  WITH subquery AS (
+    SELECT id, state
+    FROM jobs
+    WHERE state IN ('scheduled', 'retryable')
+      AND queue IS NOT NULL
+      AND scheduled_at <= NOW()
+    LIMIT limit
+  )
+  UPDATE jobs
+  SET state = 'available'
+  FROM subquery
+  WHERE jobs.id = subquery.id
+  RETURNING jobs.id, jobs.queue, subquery.state;
+}
+
+prune_jobs() {
+  WITH subquery AS (
+    SELECT id, queue, state
+    FROM jobs
+    WHERE state IN ('completed', 'cancelled', 'discarded')
+      AND queue IS NOT NULL
+      AND scheduled_at < NOW() - max_age
+    LIMIT limit
+  )
+  DELETE FROM jobs
+  USING subquery
+  WHERE jobs.id = subquery.id
+  RETURNING subquery.id, subquery.queue, subquery.state
+}
+
+complete_job() {
+  UPDATE jobs
+  SET state = 'completed', completed_at = NOW()
+  WHERE id = job_id
+  RETURNING *
+}
+
+discard_job() {
+  UPDATE jobs
+  SET state = 'discarded', discarded_at = NOW(), errors = array_append(errors, $1)
+  WHERE id = $2;
+}
+
+error_job() {
+  UPDATE jobs
+  SET state = 'retryable',
+      scheduled_at = NOW() + INTERVAL '$1 seconds',
+      errors = array_append(errors, $2)
+  WHERE id = $3;
+}
+
+snooze_job() {
+  UPDATE jobs
+  SET state = 'scheduled',
+      scheduled_at = NOW() + INTERVAL '$1 seconds',
+      max_attempts = max_attempts + 1
+  WHERE id = $2;
+}
+
+cancel_job() {
+  > with unsaved_error
+  UPDATE jobs
+  SET state = 'cancelled',
+      cancelled_at = NOW(),
+      errors = array_append(errors, $1)
+  WHERE id = $2
+
+  > without unsaved_error
+  UPDATE jobs
+  SET state = 'cancelled',
+      cancelled_at = NOW()
+  WHERE id = $1
+    AND state NOT IN ('cancelled', 'completed', 'discarded')
+}
+
+cancel_all_jobs() {
+  UPDATE jobs
+  SET state = 'cancelled',
+      cancelled_at = NOW()
+  WHERE
+    state NOT IN ('cancelled', 'completed', 'discarded') AND
+    worker = $1 AND
+    queue = $2
+  RETURNING id, queue, state
+}
+
+retry_all_jobs() {
+  UPDATE jobs
+  SET state = 'available',
+      max_attempts = GREATEST(max_attempts, attempt + 1),
+      scheduled_at = NOW(),
+      completed_at = NULL,
+      cancelled_at = NULL,
+      discarded_at = NULL
+  WHERE
+    state NOT IN ('available', 'executing') AND
+    id = $1 AND
+    worker = $2
+  RETURNING id, queue, state
+}
+
+fetch_jobs() {
+  WITH subset AS (
+    SELECT id
+    FROM jobs
+    WHERE state = 'available' AND queue = $1
+    ORDER BY priority ASC, scheduled_at ASC, id ASC
+    LIMIT $2
+    FOR UPDATE SKIP LOCKED
+  )
+  UPDATE jobs AS j
+  SET state = 'executing',
+      attempted_at = $3,
+      attempted_by = $4,
+      attempt = attempt + 1
+  FROM subset s
+  WHERE j.id = s.id AND j.attempt < j.max_attempts
+  RETURNING count(*), array_agg(j.*);
+}
