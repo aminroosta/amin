@@ -1,4 +1,5 @@
 export { EramJob } from './lib/job';
+export { WorkerPool } from './lib/worker-pool';
 
 /* pg */
 // var client = {} as any;
