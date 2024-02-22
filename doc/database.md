@@ -222,3 +222,37 @@ fetch_jobs() {
   WHERE j.id = s.id AND j.attempt < j.max_attempts
   RETURNING count(*), array_agg(j.*);
 }
+
+
+stager
+-----
+calls Enine.stage_jobs and Notifier.notify(:insert, <queue_name>)
+
+notifier
+-----
+listen, unlisten and notify
+
+peer
+------
+maintains leadership for a particular instance within a cluster.
+Notifier.listen(name, :leader)
+Notifier.notify(:leader, %{down: name})
+
+upsert_peer() {
+  INSERT INTO oban_peers (name, node, started_at, expires_at)
+  VALUES ('instance_name', 'peer_node', now, now + interval '30 seconds')
+  ON CONFLICT (name)
+  DO UPDATE SET expires_at = now + interval '30 seconds'
+  RETURNING 1;
+}
+
+
+executer
+-----
+  |> record_started()
+  |> resolve_worker()
+  |> start_timeout()
+  |> perform()
+  |> normalize_state()
+  |> record_finished()
+  |> cancel_timeout()
