@@ -3,20 +3,34 @@ import path from 'path';
 
 
 export class WorkerPool {
-  workers: ChildProcess[] = [];
+  workers: { worker: ChildProcess, controller: AbortController }[] = [];
 
   addWorker() {
-    const worker = fork(
-      path.join(import.meta.dirname, './worker.ts'), {}
-    );
+    return new Promise((resolve, reject) => {
+      const controller = new AbortController();
+      const { signal } = controller;
+      const worker = fork(
+        path.join(import.meta.dirname, './worker.ts'),
+        { signal }
+      );
 
-    if (!worker.pid) {
-      throw new Error("Error: failed to create child process workers.");
-    }
-    this.workers.push(worker);
-    worker.on('exit', () => {
-      console.log(`worker.pid=${worker.pid} exited`);
-      this.workers = this.workers.filter(w => w === worker);
+      if (!worker.pid) {
+        throw new Error("Error: failed to create child process workers.");
+      }
+      this.workers.push({ worker, controller });
+
+      worker.on('error', error => {
+        // FIXME: what do we do when the worker errors out?
+        console.log({ error });
+      });
+
+      worker.on('exit', () => {
+        console.log(`worker.pid=${worker.pid} exited`);
+        this.workers = this.workers.filter(w => w.worker !== worker);
+      });
+      worker.on('spawn', () => {
+
+      });
     });
   }
 }
