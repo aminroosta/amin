@@ -256,3 +256,8 @@ executer
   |> normalize_state()
   |> record_finished()
   |> cancel_timeout()
+
+
+process management
+-----
+- bull https://github.com/OptimalBits/bull/tree/develop/lib/process example
