@@ -226,7 +226,7 @@ fetch_jobs() {
 
 stager
 -----
-calls Enine.stage_jobs and Notifier.notify(:insert, <queue_name>)
+calls Engine.stage_jobs and Notifier.notify(:insert, <queue_name>)
 
 notifier
 -----
