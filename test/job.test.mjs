@@ -32,7 +32,7 @@ describe('EramJob', () => {
         }
       }
     }, {
-      name: 'MissingPerformMethodError',
+      name: 'EramError',
       message: 'Class ExampleJob must define an async perform() method.'
     });
   });
