@@ -18,7 +18,6 @@
     "strict": false,
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
+    "emitDecoratorMetadata": true
   }
 }

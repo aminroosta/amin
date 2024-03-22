@@ -1,5 +1,5 @@
 import type { EntityManager } from "typeorm";
-import { EramJob } from "eramjs";
+import { EramJob } from "eram";
 
 export class EmailUserJob extends EramJob {
   static {

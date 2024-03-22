@@ -1,14 +1,8 @@
 {
   "name": "eram",
-  "exports": "./lib/index.js",
+  "main": "./index.js",
+  "types": "./index.d.ts",
   "version": "0.0.1",
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/pg": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "*"
-  },
   "dependencies": {
     "postgres": "^3.4.3"
   }

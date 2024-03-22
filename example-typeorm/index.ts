@@ -3,7 +3,7 @@ import "reflect-metadata"
 import { DataSource } from "typeorm"
 import { Photo } from "./PhotoEntity"
 import { EmailUserJob } from "./EmailUserJob";
-import { EramEgine } from 'eramjs';
+import { EramEgine } from 'eram';
 
 const datasource = new DataSource({
   type: "postgres",
